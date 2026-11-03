@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spektra胶片模拟 —— 自适应图标前景。片基 + 齿孔 + 橙色画面窗，与"片边"功能同一套视觉。
+     108dp 画布，内容收在 76x40 的中带里，符合自适应图标的安全区。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 片基 -->
+    <path
+        android:fillColor="#FF161C23"
+        android:pathData="M16,34 h76 v40 h-76 z" />
+
+    <!-- 上下沿细线，给片基一点厚度感 -->
+    <path
+        android:fillColor="#FF2A333D"
+        android:pathData="M16,34 h76 v1.6 h-76 z" />
+    <path
+        android:fillColor="#FF2A333D"
+        android:pathData="M16,72.4 h76 v1.6 h-76 z" />
+
+    <!-- 齿孔：上下各 5 个，米白，与片边实现里的颜色一致 -->
+    <path
+        android:fillColor="#FFF0ECE4"
+        android:pathData="M22,37.6 h7 v6.4 h-7 z M35.5,37.6 h7 v6.4 h-7 z M49,37.6 h7 v6.4 h-7 z M62.5,37.6 h7 v6.4 h-7 z M76,37.6 h7 v6.4 h-7 z" />
+    <path
+        android:fillColor="#FFF0ECE4"
+        android:pathData="M22,64 h7 v6.4 h-7 z M35.5,64 h7 v6.4 h-7 z M49,64 h7 v6.4 h-7 z M62.5,64 h7 v6.4 h-7 z M76,64 h7 v6.4 h-7 z" />
+
+    <!-- 画面窗：橙色，暗指片边的那道边字 -->
+    <path
+        android:fillColor="#FFE87E2C"
+        android:pathData="M33,48.4 h42 v7.2 h-42 z" />
+</vector>

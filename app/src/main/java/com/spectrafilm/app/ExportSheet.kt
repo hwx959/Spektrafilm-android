@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -48,6 +49,9 @@ fun ExportSheet(
     onCctfChange: (Boolean) -> Unit,
     keepGps: Boolean,
     onKeepGpsChange: (Boolean) -> Unit,
+    /** 片边设置与画布左下角按钮共用同一份状态，改哪边都立刻反映到预览。 */
+    edge: FilmEdgeSettings,
+    onEdgeChange: (FilmEdgeSettings) -> Unit,
     onDismiss: () -> Unit,
     onExport: () -> Unit,
 ) {
@@ -163,6 +167,46 @@ fun ExportSheet(
                     checked = cctf,
                     onCheckedChange = onCctfChange,
                     tooltip = stringResource(R.string.tool_export_cctf_help),
+                )
+            }
+
+            HorizontalDivider()
+
+            // --- 片边（与画布左下角那个按钮是同一份状态） ---
+            Text(
+                stringResource(R.string.tool_export_film_edge),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.semantics { heading() },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(
+                    FilmEdgeStyle.NONE to stringResource(R.string.tool_export_film_edge_off),
+                    FilmEdgeStyle.F135 to stringResource(R.string.tool_export_film_edge_135),
+                    FilmEdgeStyle.F120 to stringResource(R.string.tool_export_film_edge_120),
+                    FilmEdgeStyle.MINIMAL to stringResource(R.string.tool_export_film_edge_minimal),
+                ).forEach { (style, label) ->
+                    FilterChip(
+                        selected = edge.style == style,
+                        onClick = { onEdgeChange(edge.copy(style = style)) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            if (edge.style == FilmEdgeStyle.F135) {
+                SwitchRow(
+                    label = stringResource(R.string.tool_export_film_edge_barcode),
+                    checked = edge.barcode,
+                    onCheckedChange = { onEdgeChange(edge.copy(barcode = it)) },
+                )
+            }
+            if (edge.style != FilmEdgeStyle.NONE) {
+                Text(
+                    stringResource(R.string.tool_export_film_edge_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

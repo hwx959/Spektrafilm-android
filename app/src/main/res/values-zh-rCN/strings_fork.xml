@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本 fork 新增文案的简体中文。 -->
+<resources>
+    <string name="editor_restore_chrome">"恢复工具栏"</string>
+    <string name="tool_export_film_edge">"片边"</string>
+    <string name="tool_export_film_edge_off">"关闭"</string>
+    <string name="tool_export_film_edge_135">"135"</string>
+    <string name="tool_export_film_edge_120">"120"</string>
+    <string name="tool_export_film_edge_minimal">"白边"</string>
+    <string name="tool_export_film_edge_barcode">"DX 条码带"</string>
+    <string name="tool_export_film_edge_note">"只对 JPEG / 8 位 PNG 生效；TIFF 与 16 位 PNG 走原生编码，不合成片边。"</string>
+</resources>

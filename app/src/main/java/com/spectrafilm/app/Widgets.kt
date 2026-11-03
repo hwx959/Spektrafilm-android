@@ -1132,11 +1132,25 @@ private fun NumericEntryDialog(
 /**
  * Converts a snake_case method id to a human-readable Title Case label.
  * e.g. "center_weighted" -> "Center Weighted"
+ *
+ * 中文环境走译名表——测光模式是摄影术语，直译成 “Center Weighted” 没有意义。
  */
-private fun meteringMethodLabel(id: String): String =
-    id.split('_').joinToString(" ") { word ->
+private val METERING_METHODS_ZH = mapOf(
+    "center_weighted" to "中央重点",
+    "matrix" to "矩阵测光",
+    "multi_zone" to "多分区",
+    "partial" to "局部测光",
+    "highlight_weighted" to "高光优先",
+    "median" to "中值",
+    "average" to "平均",
+)
+
+private fun meteringMethodLabel(id: String): String {
+    if (wantsChinese()) METERING_METHODS_ZH[id]?.let { return it }
+    return id.split('_').joinToString(" ") { word ->
         word.replaceFirstChar { it.uppercaseChar() }
     }
+}
 
 /**
  * A small drag-handle bar drawn via Canvas — the grabber affordance at the

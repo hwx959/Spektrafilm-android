@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本 fork 新增的文案（不碰上游的 strings_editor.xml，避免与上游冲突）。 -->
+<resources>
+    <string name="editor_restore_chrome">Show controls</string>
+    <string name="tool_export_film_edge">Film edge</string>
+    <string name="tool_export_film_edge_off">Off</string>
+    <string name="tool_export_film_edge_135">135</string>
+    <string name="tool_export_film_edge_120">120</string>
+    <string name="tool_export_film_edge_minimal">White</string>
+    <string name="tool_export_film_edge_barcode">DX barcode strip</string>
+    <string name="tool_export_film_edge_note">Only applied to JPEG / 8-bit PNG. TIFF and 16-bit PNG use the native encoder, so no edge is composited.</string>
+</resources>

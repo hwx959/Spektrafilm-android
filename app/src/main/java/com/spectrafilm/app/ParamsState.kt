@@ -409,8 +409,11 @@ class ParamsState {
         // the magnifier and EXPORT do NOT, so grain/halation still render where they're visible.
         // Preview-only — never set on the export path, so parity is unaffected. Couplers stay on.
         skipGrainHalation: Boolean = false,
+        // 胶片缩略图：同一张照片按不同胶片各渲染一次，除 filmProfile 外其余参数完全一致。
+        // 只用于 strip 的预渲染，交互渲染与导出路径永远不会传它。
+        filmProfileOverride: String? = null,
     ): SpektraParams = SpektraParams(
-        filmProfile = filmProfile,
+        filmProfile = filmProfileOverride ?: filmProfile,
         printProfile = printProfile,
         camera = CameraParams(
             exposureCompensationEv = exposureCompensationEv,

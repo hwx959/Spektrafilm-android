@@ -97,6 +97,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.lifecycleScope
 import com.spectrafilm.engine.AppRenderOutcome
 import com.spectrafilm.engine.ColorSpace
@@ -121,6 +122,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import org.json.JSONObject
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -1336,6 +1338,54 @@ class MainActivity : ComponentActivity() {
         // every frame, which is the churn documented on PanelOverlay. A one-shot layout change
         // is a different thing and is what this is.
         var chromeHidden by remember { mutableStateOf(false) }
+        // 片边：合成发生在像素上，预览与导出共用同一个 composeFilmEdge。
+        // 切样式只重合成一张位图（几毫秒），不重跑引擎。
+        var edgeSettings by remember { mutableStateOf(FilmEdgeSettings()) }
+        var edgeSheetOpen by remember { mutableStateOf(false) }
+        val edgedPreview by produceState<Bitmap?>(
+            initialValue = preview,
+            preview,
+            edgeSettings,
+            state.filmProfile,
+        ) {
+            val src = preview
+            value = if (src == null || edgeSettings.style == FilmEdgeStyle.NONE) {
+                src
+            } else {
+                withContext(Dispatchers.Default) {
+                    runCatching {
+                        composeFilmEdge(
+                            src,
+                            edgeSettings,
+                            StockCatalog.displayName(ctx, state.filmProfile),
+                        )
+                    }.getOrDefault(src)
+                }
+            }
+        }
+        if (edgeSheetOpen) {
+            FilmEdgeSheet(
+                current = edgeSettings,
+                onPick = { style ->
+                    edgeSheetOpen = false
+                    edgeSettings = edgeSettings.copy(style = style)
+                },
+                onDateToggle = { on ->
+                    edgeSettings = edgeSettings.copy(
+                        dateText = if (on) {
+                            java.text.SimpleDateFormat("yyyy MM dd", java.util.Locale.US)
+                                .format(java.util.Date())
+                        } else {
+                            null
+                        },
+                    )
+                },
+                onBarcodeToggle = { on ->
+                    edgeSettings = edgeSettings.copy(barcode = on)
+                },
+                onDismiss = { edgeSheetOpen = false },
+            )
+        }
         var magnifierBitmap by remember { mutableStateOf<Bitmap?>(null) }
         var magnifierRendering by remember { mutableStateOf(false) }
         var magnifierStatus by remember { mutableStateOf("") }
@@ -3570,6 +3620,17 @@ class MainActivity : ComponentActivity() {
                 .fillMaxSize()
                 .background(SpectraIcons.nearBlackCanvas),
         ) {
+            // 单击照片隐藏工具栏之后，画面里唯一还能看见的回头路。
+            // zIndex 让它压在 Column 之上——Box 默认按声明顺序绘制，这里声明在 Column 前面。
+            if (chromeHidden) {
+                RestoreChromeHint(
+                    onRestore = { chromeHidden = false },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 36.dp)
+                        .zIndex(1f),
+                )
+            }
             Column(
                 Modifier
                     .fillMaxSize()
@@ -3616,6 +3677,54 @@ class MainActivity : ComponentActivity() {
                     // `when` below is not duplicated.
                     val panelContent: @Composable ColumnScope.() -> Unit = {
                         CompositionLocalProvider(LocalSliderInteraction provides sliderInteraction) {
+                        // ---- 胶片缩略图（Film 页横向条）-------------------------------------
+                        // 用当前这张照片，为每支胶片各渲染一张 224px 的小图。串行、低优先级：
+                        // 一旦用户开始拖动或落定渲染在跑，立刻让路；换照片/换相纸时整体作废。
+                        // 这是上游当初搁置的那件事（StockBrowser.kt 头部注释），补的正是它的
+                        // 缺项——真机上量过成本之后，这个顺序才是安全的。
+                        val filmThumbs = remember { mutableStateMapOf<String, Bitmap>() }
+                        LaunchedEffect(sourceUri, state.printProfile) {
+                            // 源或相纸变了，旧缩略图描述的是另一张照片，必须丢弃
+                            filmThumbs.clear()
+                        }
+                        LaunchedEffect(activeCategory, sourceUri, state.printProfile, engine) {
+                            if (activeCategory != Category.SIMULATION) return@LaunchedEffect
+                            val e = engine ?: return@LaunchedEffect
+                            val fullEdge = state.previewMaxSize.coerceAtLeast(256)
+                            val ticket = cachedSourceDecodeRequest(sourceCache, fullEdge).ticket
+                            val lease = sourceCache.acquire(ticket) ?: return@LaunchedEffect
+                            try {
+                                lease.use { pinned ->
+                                    for (group in filmGroups) for (option in group.options) {
+                                        if (filmThumbs.containsKey(option.id)) continue
+                                        // 让路：拖动中或落定渲染在跑，绝不抢核
+                                        if (interacting.value || previewBusy) return@use
+                                        val thumb = withContext(Dispatchers.Default) {
+                                            runCatching {
+                                                e.simulatePreview(
+                                                    pinned.image,
+                                                    state.toParams(
+                                                        previewMaxSizeOverride = FILM_THUMB_EDGE,
+                                                        skipGrainHalation = true,
+                                                        filmProfileOverride = option.id,
+                                                    ),
+                                                ).use { res ->
+                                                    simResultToBitmapGraded(
+                                                        res, state.savingCctfEncoding,
+                                                        state.saturation, state.vibrance,
+                                                        state.gamutCompress, state.localAdjustments,
+                                                    )
+                                                }
+                                            }.getOrNull()
+                                        }
+                                        if (thumb != null) filmThumbs[option.id] = thumb
+                                        yield()
+                                    }
+                                }
+                            } catch (_: CancellationException) {
+                                // 换照片/切页签：整批作废，缩略图随之清空
+                            }
+                        }
                         when (activeCategory) {
                             Category.INPUT -> InputSection(state, onEditCrop = { cropOverlayOpen = true },
                                 onPickNeutral = { sampleWbMode = true; sampleOverlayOpen = true })
@@ -3625,6 +3734,7 @@ class MainActivity : ComponentActivity() {
                                 s = state,
                                 filmGroups = filmGroups,
                                 printGroups = printGroups,
+                                filmThumbs = filmThumbs,
                                 onOpenFilmCurves = {
                                     checkpointEditorSession()
                                     onOpenFilmCurves(
@@ -4025,7 +4135,7 @@ class MainActivity : ComponentActivity() {
                     val previewRegion: @Composable () -> Unit = {
                         PreviewRegion(
                             controlsBottomInset = panelInset,
-                            preview = preview,
+                            preview = edgedPreview,
                             before = beforePreview,
                             busy = previewBusy,
                             decoding = decoding,
@@ -4095,7 +4205,17 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxWidth()
                                         .weight(1f)
                                         .heightIn(min = 220.dp),
-                                ) { previewRegion() }
+                                ) {
+                                    previewRegion()
+                                    FilmEdgeChip(
+                                        active = edgeSettings.style,
+                                        onClick = { edgeSheetOpen = true },
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(start = 12.dp, top = 56.dp)
+                                            .zIndex(1f),
+                                    )
+                                }
                                 // --- CATEGORY BAR (under the preview column) ---
                                 if (!chromeHidden) categoryBar()
                             }
@@ -4123,6 +4243,14 @@ class MainActivity : ComponentActivity() {
                                     .heightIn(min = 220.dp),
                             ) {
                                 previewRegion()
+                                FilmEdgeChip(
+                                    active = edgeSettings.style,
+                                    onClick = { edgeSheetOpen = true },
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(start = 12.dp, top = 56.dp)
+                                        .zIndex(1f),
+                                )
 
                                 // --- ADJUSTMENT PANEL (floating bottom overlay) ---
                                 // Floated INSIDE the preview Box (aligned to its bottom) so
@@ -4374,6 +4502,8 @@ class MainActivity : ComponentActivity() {
                     onCctfChange = { state.savingCctfEncoding = it },
                     keepGps = exportKeepGps,
                     onKeepGpsChange = { exportKeepGps = it },
+                    edge = edgeSettings,
+                    onEdgeChange = { edgeSettings = it },
                     onDismiss = { showExportSheet = false },
                     onExport = export@{
                         if (!sourceRenderAllowed) {
@@ -4717,9 +4847,16 @@ class MainActivity : ComponentActivity() {
                                                         OutputEncoder.ANDROID_BITMAP_PNG,
                                                         OutputEncoder.ANDROID_BITMAP_JPEG -> saveToGallery(
                                                             exportContext,
-                                                            requireNotNull(bmp) {
-                                                                "Bitmap encoder missing graded bitmap"
-                                                            },
+                                                            // 导出与预览走同一个合成函数，所见即所得。
+                                                            // 只作用于 JPEG / 8 位 PNG——TIFF16/PNG16 走原生编码，
+                                                            // 不经过 Bitmap，这也是 CN 版片边的同一条限制。
+                                                            composeFilmEdge(
+                                                                requireNotNull(bmp) {
+                                                                    "Bitmap encoder missing graded bitmap"
+                                                                },
+                                                                edgeSettings,
+                                                                StockCatalog.displayName(exportContext, state.filmProfile),
+                                                            ),
                                                             outputDescriptor,
                                                             exportJpegQuality,
                                                             srcExif,
@@ -6589,6 +6726,7 @@ class MainActivity : ComponentActivity() {
         s: ParamsState,
         filmGroups: List<DropdownGroup>,
         printGroups: List<DropdownGroup>,
+        filmThumbs: Map<String, Bitmap>,
         onOpenFilmCurves: () -> Unit,
         onOpenPrintCurves: () -> Unit,
         onFilmProfileChange: (String) -> Unit,
@@ -6609,6 +6747,14 @@ class MainActivity : ComponentActivity() {
                 simTab, { simTab = it })
             when (simTab) {
                 0 -> {
+                    // 先看后选：当前照片过每支胶片的小图，点一下就换，不必进面板读描述。
+                    // 还没画出来的格子显示“…”，不挡操作；切换仍走 onFilmProfileChange 全流程。
+                    FilmThumbnailStrip(
+                        options = filmGroups.flatMap { it.options },
+                        selectedId = s.filmProfile,
+                        thumbs = filmThumbs,
+                        onSelect = onFilmProfileChange,
+                    )
                     // A browser rather than a menu: 28 stocks, each with an ISO, a colour
                     // balance and a character note that a dropdown row cannot show well.
                     StockPickerField(

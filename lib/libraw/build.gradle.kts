@@ -17,6 +17,11 @@ plugins {
 }
 
 android {
+    // 预编译原生库模式：不编译 CMake，直接打包官方 APK 中同版本的 .so
+    packaging {
+        jniLibs { keepDebugSymbols += "**/*.so" }
+    }
+
     namespace = "com.spectrafilm.libraw"
     compileSdk = 36
 
@@ -24,36 +29,12 @@ android {
     // native LOAD segments are 16 KB-aligned and
     // ships a 16 KB-aligned libc++_shared.so — required for Android 15's 16 KB page
     // devices. The CMake link flag (CMakeLists.txt) pins the alignment explicitly too.
-    ndkVersion = "28.2.13676358"
-
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner =
             "com.spectrafilm.libraw.RawDecoderBoundaryInstrumentation"
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-                arguments += "-DANDROID_STL=c++_shared"
-                // Make the shipping policy explicit so a stale external-native
-                // CMake cache cannot retain an earlier experimental OpenMP opt-in.
-                arguments += "-DSFRAW_ENABLE_OPENMP=OFF"
-                // Keep the audited LibRaw floating-point deflate parser compiled
-                // for corpus/security coverage. RawDecoder still routes float DNG
-                // before dcraw's quantizing bitmap stage; it is not native parity.
-                arguments += "-DSFRAW_WITH_ZLIB=ON"
-            }
-        }
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

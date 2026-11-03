@@ -126,3 +126,40 @@ upstream filenames for traceability. See `engine/spektra-core/src/main/assets/sp
 - **`icc/saucecontrol/` — Compact ICC Profiles** by Clinton Ingram. Licensed under the **MIT
   License**. Upstream: https://github.com/saucecontrol/Compact-ICC-Profiles — license text:
   `icc/saucecontrol/LICENSE-MIT`.
+
+---
+
+# 本分支（Spektra胶片模拟）的改动与新增归属
+
+本分支基于 **Akshay Sharma 的 Spektrafilm for Android v0.10.0**（GPL-3.0）修改，
+**非官方版本**，与 SpektraLab 及其作者无关。上游的 GPLv3 §7(b) 署名要求照原样保留，未做删改。
+
+## 新增功能（本分支原创实现）
+
+- 胶片缩略图条（`FilmThumbnailStrip.kt`）与配套预渲染调度
+- 隐藏工具栏后的「恢复工具栏」入口（`RestoreChromeHint.kt`）
+- 片边合成（`FilmEdge.kt`）：135 / 120 / 极简白边三种画幅，画布预览与导出共用同一实现
+- 中文参数帮助文案（`ParamHelp.kt` 中的 `sectionsZh`）
+
+以上代码为本分支独立编写，以 GPL-3.0 发布。
+
+## 中文界面译文
+
+`app/src/main/res/values-zh-rCN/` 下的界面译文，以及
+`engine/spektra-core/src/main/assets/spektra/catalog.json` 中的 `titleZh` / `summaryZh` 字段，
+**取自 SpektraLab-CN 0.10.0-cn9（com.spektralab.cn）** 的 `(zh-rCN)` 资源与 `assets` 数据，
+按资源名与 JSON 键对齐移植，共 914 条字符串、28 条胶片简介、5 个分组标题。
+
+译文的著作权归该版本译者（Hanze Qiu / 邱瀚泽，GitHub: JamesQiu2005）。
+该版本以 GPL-3.0 分发，本分支据此在同样许可下使用这些译文。
+若译者认为此处署名有误或希望调整，请联系本仓库维护者，将立即更正。
+
+## 片边配色
+
+片边三种画幅的配色（片基、边缘字、齿孔、条码带）参照 SpektraLab-CN 的 `FilmEdgeCompositor`
+的输出效果对齐，绘制代码为本分支独立编写，未复制其实现。
+
+## 原生库来源
+
+本分支不编译 C/C++ 代码，`jniLibs` 下的原生库取自上游 v0.10.0 发行包，
+来源、哈希与重建方法见 `NATIVE-BUILD.md`。

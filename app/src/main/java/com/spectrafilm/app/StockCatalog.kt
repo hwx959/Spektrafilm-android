@@ -25,21 +25,43 @@ data class StockEntry(
     val balance: String?,
     val summary: String,
     val order: Int,
+    /** Chinese one-line character note; empty when the catalog has none. */
+    val summaryZh: String = "",
 )
 
 /** A catalog group (category) with a human title and sort order. */
-data class StockGroup(val id: String, val title: String, val order: Int)
+data class StockGroup(val id: String, val title: String, val order: Int, val titleZh: String = "")
+
+/** True when the system locale asks for Simplified Chinese. */
+internal fun wantsChinese(): Boolean =
+    java.util.Locale.getDefault().language.startsWith("zh")
+
+/** The catalog's character note in the asked-for language, falling back to English. */
+fun StockEntry.localizedSummary(chinese: Boolean = wantsChinese()): String =
+    if (chinese && summaryZh.isNotBlank()) summaryZh else summary
 
 /** True when this entry is a colour-reversal (slide) film — the "view as positive" stocks. */
 fun StockEntry.isReversal(): Boolean = groupId == StockCatalog.GROUP_COLOR_REVERSAL
+
+/** Balance name in the asked-for language. Unknown values pass through unchanged. */
+private fun balanceLabel(balance: String, chinese: Boolean): String {
+    if (!chinese) return balance
+    return when (balance.lowercase()) {
+        "daylight" -> "日光"
+        "tungsten" -> "钨丝灯"
+        else -> balance
+    }
+}
 
 /**
  * "ISO 400 · Tungsten" — whichever of the two the catalog actually has, joined only when both
  * are present. Print papers carry neither and get a blank line rather than a stray separator.
  */
-fun StockEntry.specLine(): String =
-    listOfNotNull(iso?.let { "ISO $it" }, balance?.takeIf { it.isNotBlank() })
-        .joinToString(" · ")
+fun StockEntry.specLine(chinese: Boolean = wantsChinese()): String =
+    listOfNotNull(
+        iso?.let { "ISO $it" },
+        balance?.takeIf { it.isNotBlank() }?.let { balanceLabel(it, chinese) },
+    ).joinToString(" · ")
 
 /**
  * An option shown in a profile dropdown.
@@ -79,7 +101,14 @@ object StockCatalog {
             val groups = buildList {
                 if (groupsArr != null) for (i in 0 until groupsArr.length()) {
                     val g = groupsArr.optJSONObject(i) ?: continue
-                    add(StockGroup(g.optString("id"), g.optString("title", g.optString("id")), g.optInt("order", i)))
+                    add(
+                        StockGroup(
+                            g.optString("id"),
+                            g.optString("title", g.optString("id")),
+                            g.optInt("order", i),
+                            g.optString("titleZh", ""),
+                        ),
+                    )
                 }
             }
 
@@ -97,6 +126,7 @@ object StockCatalog {
                     balance = if (o.has("balance")) o.optString("balance") else null,
                     summary = o.optString("summary", ""),
                     order = o.optInt("order", 0),
+                    summaryZh = o.optString("summaryZh", ""),
                 )
             }
             groups to (stocks as Map<String, StockEntry>)
@@ -118,8 +148,10 @@ object StockCatalog {
     /** Friendly display name for a profile id, or the raw id if not catalogued. */
     fun displayName(ctx: Context, id: String): String = stocks(ctx)[id]?.displayName ?: id
 
-    private fun groupTitle(ctx: Context, groupId: String): String =
-        groups(ctx).firstOrNull { it.id == groupId }?.title ?: groupId
+    private fun groupTitle(ctx: Context, groupId: String): String {
+        val g = groups(ctx).firstOrNull { it.id == groupId } ?: return groupId
+        return if (wantsChinese() && g.titleZh.isNotBlank()) g.titleZh else g.title
+    }
 
     /** Group sort order, falling back to a large value so unknown groups sort last. */
     private fun groupOrder(ctx: Context, groupId: String): Int =
@@ -150,10 +182,11 @@ object StockCatalog {
             val e = stocks[id]
             ProfileOption(
                 id = id,
+                // 胶片名保留原文：Portra 400 / C200 / Vision3 500T 是产品名，中文摄影圈也这么叫。
                 label = e?.displayName ?: id,
-                groupTitle = e?.let { groupTitle(ctx, it.groupId) } ?: "Other",
+                groupTitle = e?.let { groupTitle(ctx, it.groupId) } ?: if (wantsChinese()) "其他" else "Other",
                 spec = e?.specLine().orEmpty(),
-                summary = e?.summary.orEmpty(),
+                summary = e?.localizedSummary().orEmpty(),
             )
         }
     }

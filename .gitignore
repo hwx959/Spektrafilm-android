@@ -52,3 +52,7 @@ __pycache__/
 
 # Ephemeral agent worktrees (Claude Code isolation)
 .claude/worktrees/
+
+# 发布签名：绝不入库（*.jks / *.keystore 上面已忽略，这里补目录与属性文件）
+keystore/
+keystore.properties

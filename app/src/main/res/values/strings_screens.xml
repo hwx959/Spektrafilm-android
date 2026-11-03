@@ -53,7 +53,7 @@
     <string name="screen_about_open_source_notices">Open-source notices</string>
     <string name="screen_link_releases">Releases</string>
     <string name="screen_link_gplv3" translatable="false">GPLv3</string>
-    <string name="screen_about_notices_app_heading" translatable="false">Spektrafilm Android</string>
+    <string name="screen_about_notices_app_heading" translatable="false">Spektra胶片模拟</string>
     <string name="screen_about_notices_app_body">The app source is distributed under GPL-3.0-only. Its complete license and project notices are available below without a network connection.</string>
     <string name="screen_about_notices_libraw_heading" translatable="false">LibRaw 0.22.2</string>
     <string name="screen_about_notices_libraw_body">Copyright (C) 2008-2025 LibRaw LLC. RAW/DNG decoding in this app statically includes the pinned and locally patched LibRaw source.</string>

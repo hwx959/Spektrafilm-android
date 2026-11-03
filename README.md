@@ -224,3 +224,14 @@ Both lines, please. The film-simulation engine is a port of Andrea Volpato's spe
 crediting this port while dropping the upstream engine would misrepresent whose work you are
 shipping. The full term, and exactly what it does and does not require, is in
 [`NOTICE.md`](NOTICE.md).
+
+---
+
+## 本分支说明（Spektra胶片模拟）
+
+非官方分支，基于上游 **v0.10.0** 修改：新增胶片缩略图条、简体中文界面、片边合成（135 / 120 / 白边）。
+
+**原生库不在本仓库内编译。** `jniLibs` 下的 5 个 `.so` 取自上游 v0.10.0 发行包，未经修改；
+来源、逐文件 SHA-256、以及从源码重建的方法见 **[NATIVE-BUILD.md](NATIVE-BUILD.md)**。
+
+改动清单、第三方署名与许可归属见 **[NOTICE.md](NOTICE.md)**。

@@ -39,16 +39,22 @@ android {
     // is what lets a 16 KB-page device mmap them. Without it the libs are only 4 KB-
     // aligned in the zip and fail to load on Android 15 16 KB devices even when their
     // own ELF segments are 16 KB-aligned.
-    buildToolsVersion = "36.0.0"
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
-        applicationId = "com.spectrafilm.app"
+        // 独立包名：可与官方版、CN 版同时安装，互不覆盖
+        applicationId = "com.spektra.filmsim"
         minSdk = 24
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.10.0"
+        versionCode = 1
+        versionName = "1.0.0"
         testInstrumentationRunner = "com.spectrafilm.app.ReleaseCandidateSmokeInstrumentation"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        ndk { abiFilters += listOf("arm64-v8a") }
+    }
+
+    packaging {
+        // 原生库是预编译的官方 .so，不再由本机构建，因此禁止 AGP 尝试用 NDK strip
+        jniLibs { keepDebugSymbols += "**/*.so" }
     }
 
     signingConfigs {
@@ -80,11 +86,6 @@ android {
         }
         release {
             isMinifyEnabled = true
-            ndk {
-                // Retain complete native symbols for the exact shipping build.
-                // release.yml hash-binds and publishes AGP's symbols ZIP.
-                debugSymbolLevel = "FULL"
-            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
